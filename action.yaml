@@ -1,0 +1,69 @@
+name: 'Dokploy Deployment'
+description: 'Update Dokploy application image tag and trigger a new deployment'
+author: 'sklimaszewski'
+branding:
+    icon: 'upload-cloud'
+    color: 'gray-dark'
+inputs:
+    dokploy_url:
+        description: 'Dokploy base URL, e.g. https://dokploy.example.com'
+        required: true
+    auth_token:
+        description: 'Dokploy API authentication token'
+        required: true
+    application_id:
+        description: 'Dokploy application ID'
+        required: true
+    docker_image:
+        description: 'Docker image'
+        required: true
+runs:
+    using: "composite"
+    steps:
+        - name: Update application image tag
+          shell: bash
+          env:
+              DOKPLOY_URL: ${{ inputs.dokploy_url }}
+              DOKPLOY_TOKEN: ${{ inputs.auth_token }}
+              DOKPLOY_APPLICATION_ID: ${{ inputs.application_id }}
+              DOKPLOY_DOCKER_IMAGE: ${{ inputs.docker_image }}
+          run: |
+              response=$(curl -X 'POST' \
+                "$DOKPLOY_URL/api/application.update" \
+                -H 'Accept: application/json' \
+                -H 'Content-Type: application/json' \
+                -H "X-Api-Key: $DOKPLOY_TOKEN" \
+                -d "{\"applicationId\": \"$DOKPLOY_APPLICATION_ID\", \"dockerImage\": \"$DOKPLOY_DOCKER_IMAGE\"}" \
+                -w "%{http_code}" \
+                -o /dev/null \
+                -s)
+              
+              if [ "$response" -ne 200 ]; then
+                  echo "API request failed with status code: $response"
+                  exit 1
+              fi
+              
+              echo "Image for application $DOKPLOY_APPLICATION_ID updated successfully to $DOKPLOY_DOCKER_IMAGE"
+        - name: Trigger Dokploy deployment
+          shell: bash
+          env:
+              DOKPLOY_URL: ${{ inputs.dokploy_url }}
+              DOKPLOY_TOKEN: ${{ inputs.auth_token }}
+              DOKPLOY_APPLICATION_ID: ${{ inputs.application_id }}
+          run: |
+              response=$(curl -X 'POST' \
+                "$DOKPLOY_URL/api/application.deploy" \
+                -H 'Accept: application/json' \
+                -H 'Content-Type: application/json' \
+                -H "X-Api-Key: $DOKPLOY_TOKEN" \
+                -d "{\"applicationId\": \"$DOKPLOY_APPLICATION_ID\"}" \
+                -w "%{http_code}" \
+                -o /dev/null \
+                -s)
+              
+              if [ "$response" -ne 200 ]; then
+                  echo "API request failed with status code: $response"
+                  exit 1
+              fi
+              
+              echo "Deployment of application $DOKPLOY_APPLICATION_ID triggered successfully"
