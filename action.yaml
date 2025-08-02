@@ -1,4 +1,4 @@
-name: 'Dokploy Deployment'
+name: 'Dokploy Docker Image Deployment'
 description: 'Update Dokploy application image tag and trigger a new deployment'
 author: 'sklimaszewski'
 branding:
